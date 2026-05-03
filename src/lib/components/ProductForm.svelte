@@ -40,6 +40,9 @@
 	let images = $state(product?.images?.length ? structuredClone(product.images) : []);
 	let payload = $state('');
 	let categoryWarning = $state(false);
+	let uploadInput = $state();
+	let uploadError = $state('');
+	let uploading = $state(false);
 	let categoryOptions = $derived(categories ?? []);
 
 	$effect(() => {
@@ -75,6 +78,48 @@
 		images.push({ url: '', altText: '', sortOrder: images.length, isPrimary: images.length === 0 });
 	}
 
+	function selectPrimaryImage(index) {
+		images.forEach((image, imageIndex) => {
+			image.isPrimary = imageIndex === index;
+		});
+	}
+
+	async function uploadImage() {
+		uploadError = '';
+		const file = uploadInput?.files?.[0];
+		if (!file) {
+			uploadError = 'Choose an image to upload.';
+			return;
+		}
+
+		uploading = true;
+		try {
+			const form = new FormData();
+			form.set('file', file);
+			const response = await fetch('/products/images/upload', {
+				method: 'POST',
+				body: form
+			});
+			const result = await response.json().catch(() => ({}));
+			if (!response.ok) {
+				uploadError = result.error || result.message || 'Unable to upload image.';
+				return;
+			}
+
+			images.push({
+				url: result.url,
+				altText: '',
+				sortOrder: images.length,
+				isPrimary: images.length === 0
+			});
+			uploadInput.value = '';
+		} catch {
+			uploadError = 'Unable to upload image.';
+		} finally {
+			uploading = false;
+		}
+	}
+
 	function withDisplayPrice(variant) {
 		return {
 			...variant,
@@ -93,6 +138,10 @@
 	}
 
 	function prepare() {
+		const firstPrimaryIndex = images.findIndex((image) => image.isPrimary);
+		if (firstPrimaryIndex >= 0) {
+			selectPrimaryImage(firstPrimaryIndex);
+		}
 		const variantPayload = variants.map(({ priceDisplay, ...variant }) => ({
 			...variant,
 			unitAmount: parsePriceToCents(priceDisplay)
@@ -232,17 +281,43 @@
 		<div class="flex items-center justify-between gap-4">
 			<div>
 				<h2 class="text-lg font-black text-gray-950">Images</h2>
-				<p class="text-sm font-semibold text-gray-500">URL fields for now. Upload is coming later.</p>
+				<p class="text-sm font-semibold text-gray-500">Upload to R2 or enter a hosted image URL.</p>
 			</div>
 			<button class="button button-secondary" type="button" onclick={addImage}>＋ Add image</button>
 		</div>
-		<button class="button mt-4 cursor-not-allowed bg-gray-100 text-gray-500" type="button" disabled>Upload image disabled</button>
+		<div class="mt-4 flex flex-wrap items-center gap-3">
+			<input
+				class="input max-w-md"
+				type="file"
+				accept="image/jpeg,image/png,image/webp,image/gif"
+				bind:this={uploadInput}
+			/>
+			<button class="button button-secondary" type="button" onclick={uploadImage} disabled={uploading}>
+				{uploading ? 'Uploading...' : 'Upload image'}
+			</button>
+		</div>
+		{#if uploadError}
+			<p class="mt-2 text-sm font-semibold text-red-700">{uploadError}</p>
+		{/if}
 		<div class="mt-4 space-y-3">
 			{#each images as image, index}
-				<div class="grid gap-3 rounded-lg border border-pink-100 p-3 md:grid-cols-[1fr_1fr_auto_auto]">
+				<div class="grid gap-3 rounded-lg border border-pink-100 p-3 md:grid-cols-[80px_1fr_1fr_auto_auto]">
+					<div class="h-20 w-20 overflow-hidden rounded-md border border-pink-100 bg-pink-50">
+						{#if image.url}
+							<img class="h-full w-full object-cover" src={image.url} alt={image.altText || ''} />
+						{/if}
+					</div>
 					<input class="input" bind:value={image.url} placeholder="Image URL" />
 					<input class="input" bind:value={image.altText} placeholder="Alt text" />
-					<label class="label flex items-center gap-2"><input type="checkbox" bind:checked={image.isPrimary} /> Primary</label>
+					<label class="label flex items-center gap-2">
+						<input
+							type="radio"
+							name="primaryImage"
+							checked={image.isPrimary}
+							onchange={() => selectPrimaryImage(index)}
+						/>
+						Primary
+					</label>
 					<button class="button button-secondary" type="button" onclick={() => images.splice(index, 1)}>Remove</button>
 				</div>
 			{/each}
