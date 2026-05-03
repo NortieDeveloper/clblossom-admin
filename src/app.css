@@ -1,0 +1,76 @@
+@import 'tailwindcss';
+@plugin '@tailwindcss/forms';
+
+:root {
+	font-family: Manrope, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+	color: #241820;
+	background: #fff7fb;
+}
+
+body {
+	margin: 0;
+	min-height: 100vh;
+}
+
+button,
+input,
+textarea,
+select {
+	font: inherit;
+}
+
+.field {
+	display: grid;
+	gap: 0.35rem;
+}
+
+.field label,
+.label {
+	font-size: 0.78rem;
+	font-weight: 700;
+	color: #704156;
+}
+
+.input,
+.textarea,
+.select {
+	width: 100%;
+	border: 1px solid #efd2de;
+	border-radius: 8px;
+	background: #fff;
+	padding: 0.65rem 0.75rem;
+	color: #241820;
+}
+
+.textarea {
+	min-height: 8rem;
+}
+
+.button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.4rem;
+	border-radius: 8px;
+	padding: 0.65rem 0.9rem;
+	font-weight: 800;
+	line-height: 1;
+}
+
+.button-primary {
+	background: #be185d;
+	color: #fff;
+}
+
+.button-secondary {
+	border: 1px solid #e9c4d3;
+	background: #fff;
+	color: #7a1d43;
+}
+
+.panel {
+	border: 1px solid #f0d6e1;
+	border-radius: 8px;
+	background: #fff;
+	box-shadow: 0 10px 30px rgba(120, 39, 78, 0.06);
+}

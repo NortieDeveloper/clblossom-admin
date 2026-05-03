@@ -1,0 +1,7 @@
+import { backendFetch, requireAdmin } from '$lib/server/backend.js';
+
+export async function load(event) {
+	await requireAdmin(event);
+	const response = await backendFetch(event, '/api/admin/events');
+	return { events: response.ok ? (await response.json()).events : [] };
+}
