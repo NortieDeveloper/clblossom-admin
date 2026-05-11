@@ -3,6 +3,7 @@
 	import { page } from '$app/state';
 
 	let { children, data } = $props();
+	let userName = $derived(data.admin.name || data.admin.email || 'Admin');
 
 	const nav = [
 		{ href: '/', label: 'Overview', icon: '⌂' },
@@ -58,9 +59,15 @@
 					<p class="text-xs font-black uppercase tracking-[0.18em] text-pink-700">Dashboard</p>
 					<p class="text-sm font-semibold text-gray-600">Products, inventory, and events</p>
 				</div>
-				<form method="POST" action="/login?/logout">
-					<button class="button button-secondary" type="submit" title="Sign out">↪ Sign out</button>
-				</form>
+				<div class="flex items-center gap-3">
+					<div class="hidden text-right sm:block">
+						<p class="text-sm font-black text-gray-950">{userName}</p>
+						<p class="text-xs font-semibold text-gray-500">Signed in</p>
+					</div>
+					<form method="POST" action="/login?/logout">
+						<button class="button button-secondary" type="submit" title="Sign out">↪ Sign out</button>
+					</form>
+				</div>
 			</header>
 
 			<main class="px-4 py-6 md:px-8">{@render children()}</main>

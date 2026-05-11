@@ -1,6 +1,7 @@
 <script>
 	let { event = null, form = null, mode = 'create', action = undefined } = $props();
 	let payload = $state('');
+	let clientError = $state('');
 	let model = $state({
 		title: event?.title ?? '',
 		slug: event?.slug ?? '',
@@ -18,22 +19,21 @@
 		country: event?.country ?? 'US',
 		virtualUrl: event?.virtualUrl ?? '',
 		websiteUrl: event?.websiteUrl ?? '',
-		bannerImageUrl: event?.bannerImageUrl ?? '',
-		bannerImageAltText: event?.bannerImageAltText ?? '',
-		rsvpRequired: event?.rsvpRequired ?? false,
-		rsvpUrl: event?.rsvpUrl ?? '',
-		ticketsRequired: event?.ticketsRequired ?? false,
-		ticketUrl: event?.ticketUrl ?? '',
-		isVisible: event?.isVisible ?? false,
-		status: event?.status ?? 'draft',
-		sortOrder: event?.sortOrder ?? 0
+		status: event?.status ?? 'draft'
 	});
 
 	function toOffset(value) {
 		return value ? new Date(value).toISOString() : null;
 	}
 
-	function prepare() {
+	function prepare(submitEvent) {
+		clientError = '';
+		if (model.startsAt && model.endsAt && new Date(model.endsAt) < new Date(model.startsAt)) {
+			submitEvent.preventDefault();
+			clientError = 'Event end date cannot be before the start date.';
+			return;
+		}
+
 		payload = JSON.stringify({
 			...model,
 			startsAt: toOffset(model.startsAt),
@@ -46,6 +46,11 @@
 	{#if form?.error}
 		<p class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-800">
 			{form.error}
+		</p>
+	{/if}
+	{#if clientError}
+		<p class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-800">
+			{clientError}
 		</p>
 	{/if}
 	<input type="hidden" name="payload" bind:value={payload} />
@@ -79,24 +84,16 @@
 			</div>
 			<div class="field">
 				<span class="label">Ends</span>
-				<input class="input" type="datetime-local" bind:value={model.endsAt} />
+				<input class="input" type="datetime-local" min={model.startsAt || undefined} bind:value={model.endsAt} />
 			</div>
 			<div class="field">
 				<span class="label">Timezone</span>
 				<input class="input" bind:value={model.timeZone} />
 			</div>
-			<div class="field">
-				<span class="label">Sort order</span>
-				<input class="input" type="number" bind:value={model.sortOrder} />
-			</div>
 			<div class="field md:col-span-2">
 				<span class="label">Description</span>
 				<textarea class="textarea" bind:value={model.description}></textarea>
 			</div>
-			<label class="flex items-center gap-3 text-sm font-bold text-gray-800">
-				<input type="checkbox" bind:checked={model.isVisible} />
-				Visible on public events page
-			</label>
 		</div>
 	</section>
 
@@ -138,30 +135,6 @@
 			<div class="field md:col-span-2">
 				<span class="label">Virtual URL</span>
 				<input class="input" type="url" bind:value={model.virtualUrl} />
-			</div>
-		</div>
-	</section>
-
-	<section class="panel p-5">
-		<h2 class="text-lg font-black text-gray-950">Media and attendance</h2>
-		<div class="mt-4 grid gap-4 md:grid-cols-2">
-			<div class="field">
-				<span class="label">Banner image URL</span>
-				<input class="input" type="url" bind:value={model.bannerImageUrl} />
-			</div>
-			<div class="field">
-				<span class="label">Banner alt text</span>
-				<input class="input" bind:value={model.bannerImageAltText} />
-			</div>
-			<label class="label flex items-center gap-2"><input type="checkbox" bind:checked={model.rsvpRequired} /> RSVP required</label>
-			<div class="field">
-				<span class="label">RSVP URL</span>
-				<input class="input" type="url" bind:value={model.rsvpUrl} />
-			</div>
-			<label class="label flex items-center gap-2"><input type="checkbox" bind:checked={model.ticketsRequired} /> Tickets required</label>
-			<div class="field">
-				<span class="label">Ticket URL</span>
-				<input class="input" type="url" bind:value={model.ticketUrl} />
 			</div>
 		</div>
 	</section>

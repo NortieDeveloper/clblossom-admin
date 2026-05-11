@@ -1,4 +1,5 @@
 <script>
+	import AdminActivityList from '$lib/components/AdminActivityList.svelte';
 	import EventForm from '$lib/components/EventForm.svelte';
 	let { data, form } = $props();
 </script>
@@ -11,7 +12,7 @@
 	<div class="flex flex-wrap items-start justify-between gap-4">
 		<div>
 			<h1 class="text-3xl font-black text-gray-950">{data.event.title}</h1>
-			<p class="mt-1 text-sm font-semibold text-gray-600">Edit public event details and attendance links.</p>
+			<p class="mt-1 text-sm font-semibold text-gray-600">Edit public event details.</p>
 			{#if form?.saved}
 				<p class="mt-2 text-sm font-black text-green-700">Saved.</p>
 			{/if}
@@ -21,4 +22,8 @@
 		</form>
 	</div>
 	<EventForm event={data.event} {form} mode="edit" action="?/save" />
+	<section class="panel p-5">
+		<h2 class="mb-4 text-lg font-black text-gray-950">Activity</h2>
+		<AdminActivityList activities={data.activities} />
+	</section>
 </section>

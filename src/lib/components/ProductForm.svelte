@@ -1,4 +1,6 @@
 <script>
+	import RichTextEditor from '$lib/components/RichTextEditor.svelte';
+
 	let { product = null, form = null, mode = 'create', action = undefined, categories = [] } = $props();
 
 	let base = $state({
@@ -27,6 +29,7 @@
 						width: 7,
 						height: 1,
 						preorder: false,
+						allowBackorder: false,
 						expectedAvailabilityDate: '',
 						trackInventory: false,
 						stockQuantity: 0,
@@ -66,6 +69,7 @@
 			width: 7,
 			height: 1,
 			preorder: false,
+			allowBackorder: false,
 			expectedAvailabilityDate: '',
 			trackInventory: false,
 			stockQuantity: 0,
@@ -121,8 +125,11 @@
 	}
 
 	function withDisplayPrice(variant) {
+		const { preorder, ...rest } = variant;
 		return {
-			...variant,
+			...rest,
+			preorder: preorder ?? false,
+			allowBackorder: variant.allowBackorder ?? preorder ?? false,
 			priceDisplay:
 				variant.priceDisplay ??
 				(Number.isFinite(Number(variant.unitAmount)) && Number(variant.unitAmount) > 0
@@ -176,13 +183,13 @@
 					<option value="">Select a category</option>
 					{#each categoryOptions as category}
 						<option value={category.id}>
-							{category.name || category.id}{category.description ? ` - ${category.description}` : ''} ({category.id})
+							{category.name || category.id} {category.id}
 						</option>
 					{/each}
 				</select>
 				{#if categoryWarning}
 					<p class="text-xs font-semibold text-red-700">
-						The saved category is not a Stripe tax code. Select a valid category before saving.
+						The saved category is no longer available. Select Books or General - Tangible Goods before saving.
 					</p>
 				{/if}
 			</div>
@@ -196,7 +203,7 @@
 			</div>
 			<div class="field md:col-span-2">
 				<label for="descriptionHtml">Long HTML description</label>
-				<textarea class="textarea min-h-48 font-mono text-sm" id="descriptionHtml" bind:value={base.descriptionHtml}></textarea>
+				<RichTextEditor id="descriptionHtml" bind:value={base.descriptionHtml} />
 			</div>
 			<label class="flex items-center gap-3 text-sm font-bold text-gray-800">
 				<input type="checkbox" bind:checked={base.isVisible} />
@@ -268,6 +275,7 @@
 							<label class="label flex items-center gap-2"><input type="checkbox" bind:checked={variant.isDefault} /> Default</label>
 							<label class="label flex items-center gap-2"><input type="checkbox" bind:checked={variant.isActive} /> Active</label>
 							<label class="label flex items-center gap-2"><input type="checkbox" bind:checked={variant.preorder} /> Preorder</label>
+							<label class="label flex items-center gap-2"><input type="checkbox" bind:checked={variant.allowBackorder} /> Allow backorder</label>
 							<label class="label flex items-center gap-2"><input type="checkbox" bind:checked={variant.trackInventory} /> Track inventory</label>
 							<label class="label flex items-center gap-2"><input type="checkbox" bind:checked={variant.outOfStock} /> Out of stock</label>
 						</div>

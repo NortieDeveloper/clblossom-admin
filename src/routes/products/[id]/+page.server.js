@@ -3,16 +3,18 @@ import { error, redirect } from '@sveltejs/kit';
 
 export async function load(event) {
 	await requireAdmin(event);
-	const [productResponse, categoriesResponse] = await Promise.all([
+	const [productResponse, categoriesResponse, activitiesResponse] = await Promise.all([
 		backendFetch(event, `/api/admin/products/${event.params.id}`),
-		backendFetch(event, '/api/admin/products/categories')
+		backendFetch(event, '/api/admin/products/categories'),
+		backendFetch(event, `/api/admin/activities?entityType=product&entityId=${event.params.id}&limit=20`)
 	]);
 	const response = productResponse;
 	if (response.status === 404) throw error(404, 'Product not found');
 	if (!response.ok) throw error(response.status, 'Unable to load product');
 	const product = await response.json();
 	const categories = categoriesResponse.ok ? (await categoriesResponse.json()).categories ?? [] : [];
-	return { product, categories };
+	const activities = activitiesResponse.ok ? (await activitiesResponse.json()).activities ?? [] : [];
+	return { product, categories, activities };
 }
 
 export const actions = {

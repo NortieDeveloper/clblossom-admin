@@ -1,5 +1,6 @@
 import { env } from '$env/dynamic/private';
 import { fail, redirect } from '@sveltejs/kit';
+import { getAuthSession } from './auth0.js';
 
 const DEFAULT_ADMIN_BACKEND_API_URL = 'http://localhost:5007';
 
@@ -48,6 +49,12 @@ export async function backendFetch(event, path, init = {}) {
 	const cookie = event.request.headers.get('cookie');
 	if (cookie) headers.set('cookie', cookie);
 	if (!headers.has('accept')) headers.set('accept', 'application/json');
+	if (!headers.has('authorization')) {
+		const session = getAuthSession(event);
+		if (session?.accessToken) {
+			headers.set('authorization', `Bearer ${session.accessToken}`);
+		}
+	}
 
 	const response = await event.fetch(`${baseUrl()}${path}`, {
 		...init,
@@ -71,9 +78,9 @@ export async function backendJson(event, path, body, init = {}) {
 
 export async function requireAdmin(event) {
 	const response = await backendFetch(event, '/api/admin/auth/me');
-	if (!response.ok) throw redirect(303, '/login');
+	if (!response.ok) throw redirect(303, `/login?error=api_auth_${response.status}`);
 	const me = await response.json();
-	if (!me.authenticated) throw redirect(303, '/login');
+	if (!me.authenticated) throw redirect(303, '/login?error=not_authenticated');
 	return me;
 }
 

@@ -36,7 +36,7 @@
 						<td class="px-4 py-3 font-semibold text-gray-700">{new Date(event.startsAt).toLocaleString()}</td>
 						<td class="px-4 py-3 font-semibold text-gray-700">{event.city || event.locationName || 'Online'}</td>
 						<td class="px-4 py-3">
-							<span class="rounded-full px-2 py-1 text-xs font-black {event.isVisible ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'}">
+							<span class="rounded-full px-2 py-1 text-xs font-black {event.status === 'published' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'}">
 								{event.status}
 							</span>
 						</td>

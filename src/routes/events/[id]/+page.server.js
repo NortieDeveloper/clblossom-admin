@@ -3,10 +3,16 @@ import { error, redirect } from '@sveltejs/kit';
 
 export async function load(event) {
 	await requireAdmin(event);
-	const response = await backendFetch(event, `/api/admin/events/${event.params.id}`);
+	const [response, activitiesResponse] = await Promise.all([
+		backendFetch(event, `/api/admin/events/${event.params.id}`),
+		backendFetch(event, `/api/admin/activities?entityType=event&entityId=${event.params.id}&limit=20`)
+	]);
 	if (response.status === 404) throw error(404, 'Event not found');
 	if (!response.ok) throw error(response.status, 'Unable to load event');
-	return { event: await response.json() };
+	return {
+		event: await response.json(),
+		activities: activitiesResponse.ok ? (await activitiesResponse.json()).activities ?? [] : []
+	};
 }
 
 export const actions = {

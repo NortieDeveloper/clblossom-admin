@@ -1,4 +1,5 @@
 <script>
+	import AdminActivityList from '$lib/components/AdminActivityList.svelte';
 	import ProductForm from '$lib/components/ProductForm.svelte';
 	let { data, form } = $props();
 </script>
@@ -21,4 +22,8 @@
 		</form>
 	</div>
 	<ProductForm product={data.product} {form} mode="edit" action="?/save" categories={data.categories} />
+	<section class="panel p-5">
+		<h2 class="mb-4 text-lg font-black text-gray-950">Activity</h2>
+		<AdminActivityList activities={data.activities} />
+	</section>
 </section>

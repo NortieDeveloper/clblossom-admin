@@ -1,7 +1,13 @@
 <script>
+	import AdminActivityList from '$lib/components/AdminActivityList.svelte';
+
 	let { data } = $props();
 	const visibleProducts = $derived(data.products.filter((item) => item.isVisible).length);
-	const publishedEvents = $derived(data.events.filter((item) => item.isVisible).length);
+	const publishedEvents = $derived(data.events.filter((item) => item.status === 'published').length);
+
+	function activityHref(activity) {
+		return activity.action === 'deleted' ? null : `/${activity.entityType}s/${activity.entityId}`;
+	}
 </script>
 
 <svelte:head>
@@ -25,12 +31,14 @@
 		<div class="panel p-5">
 			<p class="text-sm font-bold text-pink-800">Events</p>
 			<p class="mt-2 text-4xl font-black text-gray-950">{data.events.length}</p>
-			<p class="text-sm font-semibold text-gray-500">{publishedEvents} visible</p>
+			<p class="text-sm font-semibold text-gray-500">{publishedEvents} published</p>
 		</div>
 		<div class="panel p-5">
 			<p class="text-sm font-bold text-pink-800">Inventory Watch</p>
 			<p class="mt-2 text-4xl font-black text-gray-950">
-				{data.products.flatMap((item) => item.variants).filter((item) => item.outOfStock || (item.trackInventory && item.stockQuantity <= 0)).length}
+				{data.products
+					.flatMap((item) => item.variants)
+					.filter((item) => !item.preorder && !item.allowBackorder && (item.outOfStock || (item.trackInventory && item.stockQuantity <= 0))).length}
 			</p>
 			<p class="text-sm font-semibold text-gray-500">blocked variants</p>
 		</div>
@@ -71,4 +79,11 @@
 			</div>
 		</section>
 	</div>
+
+	<section class="panel p-5">
+		<div class="mb-4 flex items-center justify-between">
+			<h2 class="text-lg font-black text-gray-950">Activity</h2>
+		</div>
+		<AdminActivityList activities={data.activities} getHref={activityHref} />
+	</section>
 </section>
