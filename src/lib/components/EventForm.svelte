@@ -2,6 +2,7 @@
 	let { event = null, form = null, mode = 'create', action = undefined } = $props();
 	let payload = $state('');
 	let clientError = $state('');
+	let dateOnly = $state(event?.dateOnly ?? false);
 	let model = $state({
 		title: event?.title ?? '',
 		slug: event?.slug ?? '',
@@ -22,13 +23,23 @@
 		status: event?.status ?? 'draft'
 	});
 
+	function datePart(value) {
+		return value ? value.slice(0, 10) : '';
+	}
+
+	function midnightIso(value) {
+		return value ? new Date(`${value}T00:00`).toISOString() : null;
+	}
+
 	function toOffset(value) {
 		return value ? new Date(value).toISOString() : null;
 	}
 
 	function prepare(submitEvent) {
 		clientError = '';
-		if (model.startsAt && model.endsAt && new Date(model.endsAt) < new Date(model.startsAt)) {
+		const startsAt = dateOnly ? midnightIso(datePart(model.startsAt)) : toOffset(model.startsAt);
+		const endsAt = dateOnly ? midnightIso(datePart(model.endsAt)) : toOffset(model.endsAt);
+		if (startsAt && endsAt && new Date(endsAt) < new Date(startsAt)) {
 			submitEvent.preventDefault();
 			clientError = 'Event end date cannot be before the start date.';
 			return;
@@ -36,8 +47,9 @@
 
 		payload = JSON.stringify({
 			...model,
-			startsAt: toOffset(model.startsAt),
-			endsAt: toOffset(model.endsAt)
+			dateOnly,
+			startsAt,
+			endsAt
 		});
 	}
 </script>
@@ -78,13 +90,17 @@
 					<option value="cancelled">Cancelled</option>
 				</select>
 			</div>
+			<label class="flex items-center gap-2 text-sm font-bold text-gray-700 md:col-span-2">
+				<input class="rounded border-pink-200 text-pink-700" type="checkbox" bind:checked={dateOnly} />
+				Date only
+			</label>
 			<div class="field">
 				<span class="label">Starts</span>
-				<input class="input" type="datetime-local" bind:value={model.startsAt} required />
+				<input class="input" type={dateOnly ? 'date' : 'datetime-local'} bind:value={model.startsAt} required />
 			</div>
 			<div class="field">
 				<span class="label">Ends</span>
-				<input class="input" type="datetime-local" min={model.startsAt || undefined} bind:value={model.endsAt} />
+				<input class="input" type={dateOnly ? 'date' : 'datetime-local'} min={model.startsAt || undefined} bind:value={model.endsAt} />
 			</div>
 			<div class="field">
 				<span class="label">Timezone</span>
