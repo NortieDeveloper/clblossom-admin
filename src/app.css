@@ -55,6 +55,30 @@ select {
 	padding: 0.65rem 0.9rem;
 	font-weight: 800;
 	line-height: 1;
+	cursor: pointer;
+	transition:
+		background-color 140ms ease,
+		border-color 140ms ease,
+		box-shadow 140ms ease,
+		color 140ms ease,
+		transform 140ms ease;
+}
+
+.button:hover {
+	transform: translateY(-1px);
+	box-shadow: 0 8px 18px rgba(120, 39, 78, 0.14);
+}
+
+.button:focus-visible {
+	outline: 3px solid rgba(190, 24, 93, 0.28);
+	outline-offset: 2px;
+}
+
+.button:disabled {
+	cursor: not-allowed;
+	transform: none;
+	box-shadow: none;
+	opacity: 0.72;
 }
 
 .button-primary {
@@ -62,10 +86,20 @@ select {
 	color: #fff;
 }
 
+.button-primary:hover {
+	background: #9d174d;
+}
+
 .button-secondary {
 	border: 1px solid #e9c4d3;
 	background: #fff;
 	color: #7a1d43;
+}
+
+.button-secondary:hover {
+	border-color: #be185d;
+	background: #fdf2f8;
+	color: #9d174d;
 }
 
 .panel {

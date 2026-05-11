@@ -8,6 +8,7 @@
 	const nav = [
 		{ href: '/', label: 'Overview', icon: '⌂' },
 		{ href: '/products', label: 'Products', icon: '▦' },
+		{ href: '/orders', label: 'Orders', icon: '▤' },
 		{ href: '/events', label: 'Events', icon: '◷' },
 		{ href: '/settings', label: 'Settings', icon: '⚙' }
 	];
@@ -25,7 +26,7 @@
 {#if page.url.pathname === '/login' || !data.admin.authenticated}
 	{@render children()}
 {:else}
-	<div class="min-h-screen bg-[#fff7fb] lg:grid lg:grid-cols-[17rem_1fr]">
+	<div class="min-h-screen max-w-full overflow-x-hidden bg-[#fff7fb] lg:grid lg:grid-cols-[17rem_minmax(0,1fr)]">
 		<aside class="fixed inset-y-0 left-0 hidden w-68 border-r border-pink-100 bg-white px-5 py-5 lg:block">
 			<a href="/" class="flex items-center gap-3">
 				<span class="grid size-9 place-items-center rounded-lg bg-pink-200 font-black text-pink-800">CL</span>
@@ -51,7 +52,7 @@
 			</nav>
 		</aside>
 
-		<div class="lg:col-start-2">
+		<div class="min-w-0 lg:col-start-2">
 			<header
 				class="sticky top-0 z-10 flex min-h-16 items-center justify-between border-b border-pink-100 bg-white/90 px-4 backdrop-blur md:px-8"
 			>
@@ -70,7 +71,7 @@
 				</div>
 			</header>
 
-			<main class="px-4 py-6 md:px-8">{@render children()}</main>
+			<main class="min-w-0 px-4 py-6 md:px-8">{@render children()}</main>
 		</div>
 	</div>
 {/if}
