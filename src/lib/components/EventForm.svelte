@@ -3,13 +3,19 @@
 	let payload = $state('');
 	let clientError = $state('');
 	let dateOnly = $state(event?.dateOnly ?? false);
+
+	function initialDateValue(value) {
+		if (!value) return '';
+		return event?.dateOnly ? value.slice(0, 10) : value.slice(0, 16);
+	}
+
 	let model = $state({
 		title: event?.title ?? '',
 		slug: event?.slug ?? '',
 		type: event?.type ?? '',
 		description: event?.description ?? '',
-		startsAt: event?.startsAt ? event.startsAt.slice(0, 16) : '',
-		endsAt: event?.endsAt ? event.endsAt.slice(0, 16) : '',
+		startsAt: initialDateValue(event?.startsAt),
+		endsAt: initialDateValue(event?.endsAt),
 		timeZone: event?.timeZone ?? 'America/Detroit',
 		locationName: event?.locationName ?? '',
 		addressLine1: event?.addressLine1 ?? '',
