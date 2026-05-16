@@ -1,8 +1,10 @@
 <script>
+	import { onDestroy } from 'svelte';
 	import RichTextEditor from '$lib/components/RichTextEditor.svelte';
 
 	let { product = null, form = null, mode = 'create', action = undefined, categories = [] } = $props();
 	const SHORT_DESCRIPTION_LIMIT = 500;
+	const IMAGE_ACCEPT = 'image/jpeg,image/png,image/webp,image/gif';
 
 	let base = $state({
 		slug: product?.slug ?? '',
@@ -42,13 +44,15 @@
 	);
 
 	let images = $state(product?.images?.length ? structuredClone(product.images) : []);
+	let uploadQueue = $state([]);
 	let payload = $state('');
 	let categoryWarning = $state(false);
 	let uploadInput = $state();
-	let uploadError = $state('');
-	let uploading = $state(false);
+	let dragDepth = $state(0);
 	let categoryOptions = $derived(categories ?? []);
 	let shortDescriptionRemaining = $derived(SHORT_DESCRIPTION_LIMIT - base.shortDescription.length);
+	let draggingImages = $derived(dragDepth > 0);
+	let uploading = $derived(uploadQueue.some((item) => item.status === 'uploading'));
 
 	$effect(() => {
 		if (base.category && categoryOptions.length > 0 && !categoryOptions.some((category) => category.id === base.category)) {
@@ -82,6 +86,7 @@
 
 	function addImage() {
 		images.push({ url: '', altText: '', sortOrder: images.length, isPrimary: images.length === 0 });
+		normalizeImages();
 	}
 
 	function selectPrimaryImage(index) {
@@ -90,15 +95,77 @@
 		});
 	}
 
-	async function uploadImage() {
-		uploadError = '';
-		const file = uploadInput?.files?.[0];
-		if (!file) {
-			uploadError = 'Choose an image to upload.';
-			return;
-		}
+	function normalizeImages() {
+		if (images.length === 0) return;
+		const primaryIndex = Math.max(
+			0,
+			images.findIndex((image) => image.isPrimary)
+		);
+		images.forEach((image, index) => {
+			image.sortOrder = index;
+			image.isPrimary = index === primaryIndex;
+		});
+	}
 
-		uploading = true;
+	function removeImage(index) {
+		images.splice(index, 1);
+		normalizeImages();
+	}
+
+	function moveImage(index, direction) {
+		const nextIndex = index + direction;
+		if (nextIndex < 0 || nextIndex >= images.length) return;
+		const image = images[index];
+		images[index] = images[nextIndex];
+		images[nextIndex] = image;
+		normalizeImages();
+	}
+
+	function browseImages() {
+		uploadInput?.click();
+	}
+
+	function handleFileChange(event) {
+		uploadFiles(event.currentTarget.files);
+		event.currentTarget.value = '';
+	}
+
+	function handleDragEnter(event) {
+		event.preventDefault();
+		dragDepth += 1;
+	}
+
+	function handleDragOver(event) {
+		event.preventDefault();
+	}
+
+	function handleDragLeave(event) {
+		event.preventDefault();
+		dragDepth = Math.max(0, dragDepth - 1);
+	}
+
+	function handleDrop(event) {
+		event.preventDefault();
+		dragDepth = 0;
+		uploadFiles(event.dataTransfer?.files);
+	}
+
+	function uploadFiles(fileList) {
+		const files = Array.from(fileList ?? []);
+		files.forEach(uploadFile);
+	}
+
+	async function uploadFile(file) {
+		const item = {
+			id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+			name: file.name,
+			size: file.size,
+			previewUrl: URL.createObjectURL(file),
+			status: 'uploading',
+			error: ''
+		};
+		uploadQueue.push(item);
+
 		try {
 			const form = new FormData();
 			form.set('file', file);
@@ -108,7 +175,8 @@
 			});
 			const result = await response.json().catch(() => ({}));
 			if (!response.ok) {
-				uploadError = result.error || result.message || 'Unable to upload image.';
+				item.status = 'failed';
+				item.error = result.error || result.message || 'Unable to upload image.';
 				return;
 			}
 
@@ -118,12 +186,26 @@
 				sortOrder: images.length,
 				isPrimary: images.length === 0
 			});
-			uploadInput.value = '';
+			normalizeImages();
+			removeUploadItem(item);
 		} catch {
-			uploadError = 'Unable to upload image.';
-		} finally {
-			uploading = false;
+			item.status = 'failed';
+			item.error = 'Unable to upload image.';
 		}
+	}
+
+	function removeUploadItem(item) {
+		URL.revokeObjectURL(item.previewUrl);
+		const index = uploadQueue.indexOf(item);
+		if (index >= 0) {
+			uploadQueue.splice(index, 1);
+		}
+	}
+
+	function formatFileSize(size) {
+		if (size < 1024) return `${size} B`;
+		if (size < 1024 * 1024) return `${Math.round(size / 1024)} KB`;
+		return `${(size / 1024 / 1024).toFixed(1)} MB`;
 	}
 
 	function withDisplayPrice(variant) {
@@ -147,6 +229,7 @@
 	}
 
 	function prepare() {
+		normalizeImages();
 		const firstPrimaryIndex = images.findIndex((image) => image.isPrimary);
 		if (firstPrimaryIndex >= 0) {
 			selectPrimaryImage(firstPrimaryIndex);
@@ -159,9 +242,13 @@
 			...base,
 			shortDescription: base.shortDescription.slice(0, SHORT_DESCRIPTION_LIMIT),
 			variants: variantPayload,
-			images
+			images: images.map((image, index) => ({ ...image, sortOrder: index }))
 		});
 	}
+
+	onDestroy(() => {
+		uploadQueue.forEach((item) => URL.revokeObjectURL(item.previewUrl));
+	});
 </script>
 
 <form method="POST" {action} class="space-y-6" onsubmit={prepare}>
@@ -309,43 +396,83 @@
 			</div>
 			<button class="button button-secondary" type="button" onclick={addImage}>＋ Add image</button>
 		</div>
-		<div class="mt-4 flex flex-wrap items-center gap-3">
-			<input
-				class="input max-w-md"
-				type="file"
-				accept="image/jpeg,image/png,image/webp,image/gif"
-				bind:this={uploadInput}
-			/>
-			<button class="button button-secondary" type="button" onclick={uploadImage} disabled={uploading}>
-				{uploading ? 'Uploading...' : 'Upload image'}
-			</button>
-		</div>
-		{#if uploadError}
-			<p class="mt-2 text-sm font-semibold text-red-700">{uploadError}</p>
+		<input class="sr-only" type="file" accept={IMAGE_ACCEPT} multiple bind:this={uploadInput} onchange={handleFileChange} />
+		<button
+			class="mt-4 grid w-full place-items-center rounded-lg border border-dashed p-6 text-center transition {draggingImages
+				? 'border-pink-500 bg-pink-50'
+				: 'border-pink-200 bg-white hover:bg-pink-50'}"
+			type="button"
+			ondragenter={handleDragEnter}
+			ondragover={handleDragOver}
+			ondragleave={handleDragLeave}
+			ondrop={handleDrop}
+			onclick={browseImages}
+		>
+			<span class="text-sm font-black text-gray-950">{uploading ? 'Uploading images...' : 'Drop images here or browse'}</span>
+			<span class="mt-1 text-xs font-semibold text-gray-500">JPEG, PNG, WebP, or GIF</span>
+		</button>
+
+		{#if uploadQueue.length}
+			<div class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+				{#each uploadQueue as item (item.id)}
+					<div class="overflow-hidden rounded-lg border border-pink-100 bg-white">
+						<div class="aspect-[4/3] bg-pink-50">
+							<img class="h-full w-full object-cover" src={item.previewUrl} alt="" />
+						</div>
+						<div class="grid gap-2 p-3">
+							<div class="min-w-0">
+								<p class="truncate text-sm font-black text-gray-950">{item.name}</p>
+								<p class="text-xs font-semibold text-gray-500">{formatFileSize(item.size)}</p>
+							</div>
+							{#if item.status === 'uploading'}
+								<p class="text-xs font-bold text-pink-700">Uploading...</p>
+							{:else}
+								<p class="text-xs font-bold text-red-700">{item.error}</p>
+								<button class="button button-secondary w-fit" type="button" onclick={() => removeUploadItem(item)}>Remove</button>
+							{/if}
+						</div>
+					</div>
+				{/each}
+			</div>
 		{/if}
-		<div class="mt-4 space-y-3">
+
+		<div class="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
 			{#each images as image, index}
-				<div class="grid gap-3 rounded-lg border border-pink-100 p-3 md:grid-cols-[80px_1fr_1fr_auto_auto]">
-					<div class="h-20 w-20 overflow-hidden rounded-md border border-pink-100 bg-pink-50">
+				<div class="overflow-hidden rounded-lg border border-pink-100 bg-white">
+					<div class="relative aspect-[4/3] bg-pink-50">
 						{#if image.url}
 							<img class="h-full w-full object-cover" src={image.url} alt={image.altText || ''} />
+						{:else}
+							<div class="grid h-full place-items-center px-4 text-center text-sm font-semibold text-gray-500">Image preview</div>
+						{/if}
+						{#if image.isPrimary}
+							<span class="absolute left-3 top-3 rounded bg-pink-700 px-2 py-1 text-xs font-black uppercase text-white">Primary</span>
 						{/if}
 					</div>
-					<input class="input" bind:value={image.url} placeholder="Image URL" />
-					<input class="input" bind:value={image.altText} placeholder="Alt text" />
-					<label class="label flex items-center gap-2">
-						<input
-							type="radio"
-							name="primaryImage"
-							checked={image.isPrimary}
-							onchange={() => selectPrimaryImage(index)}
-						/>
-						Primary
-					</label>
-					<button class="button button-secondary" type="button" onclick={() => images.splice(index, 1)}>Remove</button>
+					<div class="grid gap-3 p-3">
+						<input class="input" bind:value={image.url} placeholder="Image URL" />
+						<input class="input" bind:value={image.altText} placeholder="Alt text" />
+						<div class="flex flex-wrap items-center gap-2">
+							<button class="button button-secondary" type="button" onclick={() => selectPrimaryImage(index)} disabled={image.isPrimary}>
+								Primary
+							</button>
+							<button class="button button-secondary" type="button" onclick={() => moveImage(index, -1)} disabled={index === 0}>
+								Up
+							</button>
+							<button class="button button-secondary" type="button" onclick={() => moveImage(index, 1)} disabled={index === images.length - 1}>
+								Down
+							</button>
+							<button class="button button-secondary" type="button" onclick={() => removeImage(index)}>Remove</button>
+						</div>
+					</div>
 				</div>
 			{/each}
 		</div>
+		{#if images.length === 0 && uploadQueue.length === 0}
+			<p class="mt-4 rounded-lg border border-pink-100 bg-pink-50 px-3 py-2 text-sm font-semibold text-gray-600">
+				No images added yet.
+			</p>
+		{/if}
 	</section>
 
 	<div class="flex justify-end gap-3">
