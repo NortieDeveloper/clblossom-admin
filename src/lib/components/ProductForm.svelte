@@ -2,12 +2,13 @@
 	import RichTextEditor from '$lib/components/RichTextEditor.svelte';
 
 	let { product = null, form = null, mode = 'create', action = undefined, categories = [] } = $props();
+	const SHORT_DESCRIPTION_LIMIT = 500;
 
 	let base = $state({
 		slug: product?.slug ?? '',
 		name: product?.name ?? '',
 		category: product?.category ?? '',
-		shortDescription: product?.shortDescription ?? '',
+		shortDescription: (product?.shortDescription ?? '').slice(0, SHORT_DESCRIPTION_LIMIT),
 		descriptionHtml: product?.descriptionHtml ?? '',
 		isVisible: product?.isVisible ?? false,
 		sortOrder: product?.sortOrder ?? 0
@@ -47,6 +48,7 @@
 	let uploadError = $state('');
 	let uploading = $state(false);
 	let categoryOptions = $derived(categories ?? []);
+	let shortDescriptionRemaining = $derived(SHORT_DESCRIPTION_LIMIT - base.shortDescription.length);
 
 	$effect(() => {
 		if (base.category && categoryOptions.length > 0 && !categoryOptions.some((category) => category.id === base.category)) {
@@ -153,7 +155,12 @@
 			...variant,
 			unitAmount: parsePriceToCents(priceDisplay)
 		}));
-		payload = JSON.stringify({ ...base, variants: variantPayload, images });
+		payload = JSON.stringify({
+			...base,
+			shortDescription: base.shortDescription.slice(0, SHORT_DESCRIPTION_LIMIT),
+			variants: variantPayload,
+			images
+		});
 	}
 </script>
 
@@ -199,7 +206,16 @@
 			</div>
 			<div class="field md:col-span-2">
 				<label for="shortDescription">Short description</label>
-				<textarea class="textarea" id="shortDescription" bind:value={base.shortDescription}></textarea>
+				<textarea
+					class="textarea"
+					id="shortDescription"
+					maxlength={SHORT_DESCRIPTION_LIMIT}
+					aria-describedby="shortDescriptionLimit"
+					bind:value={base.shortDescription}
+				></textarea>
+				<p id="shortDescriptionLimit" class="text-xs font-semibold text-gray-500">
+					{shortDescriptionRemaining} characters remaining
+				</p>
 			</div>
 			<div class="field md:col-span-2">
 				<label for="descriptionHtml">Long HTML description</label>
@@ -248,19 +264,19 @@
 							<input class="input" bind:value={variant.currency} />
 						</div>
 						<div class="field">
-							<span class="label">Weight</span>
+							<span class="label">Weight (oz)</span>
 							<input class="input" type="number" step="0.01" bind:value={variant.weight} />
 						</div>
 						<div class="field">
-							<span class="label">Length</span>
+							<span class="label">Length (in)</span>
 							<input class="input" type="number" step="0.01" bind:value={variant.length} />
 						</div>
 						<div class="field">
-							<span class="label">Width</span>
+							<span class="label">Width (in)</span>
 							<input class="input" type="number" step="0.01" bind:value={variant.width} />
 						</div>
 						<div class="field">
-							<span class="label">Height</span>
+							<span class="label">Height (in)</span>
 							<input class="input" type="number" step="0.01" bind:value={variant.height} />
 						</div>
 						<div class="field">
