@@ -6,6 +6,7 @@
 	const publishedEvents = $derived(data.events.filter((item) => item.status === 'published').length);
 
 	function activityHref(activity) {
+		if (activity.entityId === '00000000-0000-0000-0000-000000000000') return null;
 		return activity.action === 'deleted' ? null : `/${activity.entityType}s/${activity.entityId}`;
 	}
 </script>

@@ -288,8 +288,9 @@
 				{/if}
 			</div>
 			<div class="field">
-				<label for="sortOrder">Sort order</label>
+				<label for="sortOrder">Display order</label>
 				<input class="input" id="sortOrder" type="number" bind:value={base.sortOrder} />
+				<p class="text-xs font-semibold text-gray-500">Lower numbers appear first. Use the products list to reorder visually.</p>
 			</div>
 			<div class="field md:col-span-2">
 				<label for="shortDescription">Short description</label>
