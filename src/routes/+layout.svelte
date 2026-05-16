@@ -8,6 +8,7 @@
 	const nav = [
 		{ href: '/', label: 'Overview', icon: '⌂' },
 		{ href: '/products', label: 'Products', icon: '▦' },
+		{ href: '/books', label: 'Books', icon: '▥' },
 		{ href: '/orders', label: 'Orders', icon: '▤' },
 		{ href: '/events', label: 'Events', icon: '◷' },
 		{ href: '/settings', label: 'Settings', icon: '⚙' }
