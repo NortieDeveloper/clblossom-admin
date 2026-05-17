@@ -1,8 +1,12 @@
 <script>
 	import { onDestroy } from 'svelte';
+	import { flip } from 'svelte/animate';
+	import { dragHandle, dragHandleZone } from 'svelte-dnd-action';
 	import RichTextEditor from '$lib/components/RichTextEditor.svelte';
 
 	let { book = null, form = null, mode = 'create', action = undefined } = $props();
+	const flipDurationMs = 150;
+	const GUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 	let payload = $state('');
 	let uploadInput = $state();
 	let uploading = $state(false);
@@ -21,12 +25,12 @@
 
 	let links = $state(
 		book?.links?.length
-			? structuredClone(book.links)
-			: [{ label: '', url: '', style: 'primary', sortOrder: 0 }]
+			? structuredClone(book.links).map((link) => withSortableId(link, 'link'))
+			: [withSortableId({ label: '', url: '', style: 'primary', sortOrder: 0 }, 'link')]
 	);
 
 	function addLink() {
-		links.push({ label: '', url: '', style: 'secondary', sortOrder: links.length });
+		links.push(withSortableId({ label: '', url: '', style: 'secondary', sortOrder: links.length }, 'link'));
 	}
 
 	function removeLink(index) {
@@ -50,10 +54,27 @@
 		normalizeLinks();
 	}
 
+	function handleLinkDnd(event) {
+		links = event.detail.items;
+		normalizeLinks();
+	}
+
 	function normalizeLinks() {
 		links.forEach((link, index) => {
 			link.sortOrder = index;
 		});
+	}
+
+	function makeTempId(prefix) {
+		return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+	}
+
+	function withSortableId(item, prefix) {
+		return item.id ? item : { ...item, id: makeTempId(prefix) };
+	}
+
+	function serverId(value) {
+		return GUID_REGEX.test(value ?? '') ? value : undefined;
 	}
 
 	function browseCover() {
@@ -99,7 +120,7 @@
 			...model,
 			links: links
 				.filter((link) => link.label.trim() || link.url.trim())
-				.map((link, index) => ({ ...link, sortOrder: index }))
+				.map((link, index) => ({ ...link, id: serverId(link.id), sortOrder: index }))
 		});
 	}
 
@@ -182,9 +203,27 @@
 			<h2 class="text-lg font-black text-gray-950">Links</h2>
 			<button class="button button-secondary" type="button" onclick={addLink}>＋ Add link</button>
 		</div>
-		<div class="mt-4 space-y-3">
-			{#each links as link, index}
-				<div class="grid gap-3 rounded-lg border border-pink-100 p-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_9rem_auto]">
+		<div
+			class="mt-4 space-y-3"
+			use:dragHandleZone={{ items: links, flipDurationMs }}
+			onconsider={handleLinkDnd}
+			onfinalize={handleLinkDnd}
+		>
+			{#each links as link, index (link.id)}
+				<div
+					animate:flip={{ duration: flipDurationMs }}
+					class="grid gap-3 rounded-lg border border-pink-100 p-3 md:grid-cols-[auto_minmax(0,1fr)_minmax(0,1.4fr)_9rem_auto]"
+				>
+					<div
+						class="grid size-10 cursor-grab place-items-center text-xl leading-none text-gray-500 hover:text-pink-700 focus-visible:rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-pink-300 active:cursor-grabbing"
+						role="button"
+						tabindex="0"
+						use:dragHandle
+						aria-label="Drag link {index + 1}"
+						title="Drag to reorder"
+					>
+						<span aria-hidden="true">☰</span>
+					</div>
 					<input class="input" bind:value={link.label} placeholder="Button label" />
 					<input class="input" bind:value={link.url} placeholder="/shop or https://..." />
 					<select class="select" bind:value={link.style}>

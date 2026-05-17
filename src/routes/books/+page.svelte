@@ -1,5 +1,9 @@
 <script>
+	import { flip } from 'svelte/animate';
+	import { dragHandle, dragHandleZone } from 'svelte-dnd-action';
+
 	let { data, form } = $props();
+	const flipDurationMs = 150;
 	let reorderMode = $state(false);
 	let orderedBooks = $state([]);
 	let bookIds = $derived(orderedBooks.map((book) => book.id).join(','));
@@ -35,6 +39,10 @@
 		if (index === nextIndex || index < 0 || index >= orderedBooks.length) return;
 		const [book] = orderedBooks.splice(index, 1);
 		orderedBooks.splice(nextIndex, 0, book);
+	}
+
+	function handleBookDnd(event) {
+		orderedBooks = event.detail.items;
 	}
 </script>
 
@@ -74,7 +82,7 @@
 			<div class="flex flex-wrap items-center justify-between gap-3">
 				<div>
 					<h2 class="text-lg font-black text-gray-950">Reorder Books</h2>
-					<p class="text-sm font-semibold text-gray-500">Use the controls to set public display order.</p>
+					<p class="text-sm font-semibold text-gray-500">Drag rows or use the controls to set public display order.</p>
 				</div>
 				<div class="flex flex-wrap gap-2">
 					<button class="button button-secondary" type="button" onclick={cancelReorder}>Cancel</button>
@@ -87,10 +95,25 @@
 					You have unsaved order changes.
 				</p>
 			{/if}
-			<div class="mt-4 space-y-3">
-				{#each orderedBooks as book, index}
-					<div class="grid gap-3 rounded-lg border border-pink-100 p-3 md:grid-cols-[3rem_minmax(0,1fr)_auto] {book.isVisible ? 'bg-white' : 'bg-gray-50 opacity-75'}">
-						<div class="grid size-10 place-items-center rounded-lg bg-pink-50 text-sm font-black text-pink-800">
+			<div
+				class="mt-4 space-y-3"
+				use:dragHandleZone={{ items: orderedBooks, flipDurationMs }}
+				onconsider={handleBookDnd}
+				onfinalize={handleBookDnd}
+			>
+				{#each orderedBooks as book, index (book.id)}
+					<div
+						animate:flip={{ duration: flipDurationMs }}
+						class="grid gap-3 rounded-lg border border-pink-100 p-3 md:grid-cols-[3rem_minmax(0,1fr)_auto] {book.isVisible ? 'bg-white' : 'bg-gray-50 opacity-75'}"
+					>
+						<div
+							class="grid size-10 cursor-grab place-items-center rounded-lg bg-pink-50 text-sm font-black text-pink-800 active:cursor-grabbing"
+							role="button"
+							tabindex="0"
+							use:dragHandle
+							aria-label="Drag {book.title}"
+							title="Drag to reorder"
+						>
 							{index + 1}
 						</div>
 						<div class="min-w-0">

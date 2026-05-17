@@ -1,10 +1,14 @@
 <script>
 	import { onDestroy } from 'svelte';
+	import { flip } from 'svelte/animate';
+	import { dragHandle, dragHandleZone } from 'svelte-dnd-action';
 	import RichTextEditor from '$lib/components/RichTextEditor.svelte';
 
 	let { product = null, form = null, mode = 'create', action = undefined, categories = [] } = $props();
 	const SHORT_DESCRIPTION_LIMIT = 500;
 	const IMAGE_ACCEPT = 'image/jpeg,image/png,image/webp,image/gif';
+	const flipDurationMs = 150;
+	const GUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 	let base = $state({
 		slug: product?.slug ?? '',
@@ -43,7 +47,7 @@
 		).map(withDisplayPrice)
 	);
 
-	let images = $state(product?.images?.length ? structuredClone(product.images) : []);
+	let images = $state((product?.images?.length ? structuredClone(product.images) : []).map((image) => withSortableId(image, 'image')));
 	let uploadQueue = $state([]);
 	let payload = $state('');
 	let categoryWarning = $state(false);
@@ -85,7 +89,7 @@
 	}
 
 	function addImage() {
-		images.push({ url: '', altText: '', sortOrder: images.length, isPrimary: images.length === 0 });
+		images.push(withSortableId({ url: '', altText: '', sortOrder: images.length, isPrimary: images.length === 0 }, 'image'));
 		normalizeImages();
 	}
 
@@ -118,6 +122,11 @@
 		const image = images[index];
 		images[index] = images[nextIndex];
 		images[nextIndex] = image;
+		normalizeImages();
+	}
+
+	function handleImageDnd(event) {
+		images = event.detail.items;
 		normalizeImages();
 	}
 
@@ -181,6 +190,7 @@
 			}
 
 			images.push({
+				id: makeTempId('image'),
 				url: result.url,
 				altText: '',
 				sortOrder: images.length,
@@ -206,6 +216,18 @@
 		if (size < 1024) return `${size} B`;
 		if (size < 1024 * 1024) return `${Math.round(size / 1024)} KB`;
 		return `${(size / 1024 / 1024).toFixed(1)} MB`;
+	}
+
+	function makeTempId(prefix) {
+		return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+	}
+
+	function withSortableId(item, prefix) {
+		return item.id ? item : { ...item, id: makeTempId(prefix) };
+	}
+
+	function serverId(value) {
+		return GUID_REGEX.test(value ?? '') ? value : undefined;
 	}
 
 	function withDisplayPrice(variant) {
@@ -242,7 +264,11 @@
 			...base,
 			shortDescription: base.shortDescription.slice(0, SHORT_DESCRIPTION_LIMIT),
 			variants: variantPayload,
-			images: images.map((image, index) => ({ ...image, sortOrder: index }))
+			images: images.map((image, index) => ({
+				...image,
+				id: serverId(image.id),
+				sortOrder: index
+			}))
 		});
 	}
 
@@ -437,10 +463,22 @@
 			</div>
 		{/if}
 
-		<div class="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-			{#each images as image, index}
-				<div class="overflow-hidden rounded-lg border border-pink-100 bg-white">
-					<div class="relative aspect-[4/3] bg-pink-50">
+		<div
+			class="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3"
+			use:dragHandleZone={{ items: images, flipDurationMs }}
+			onconsider={handleImageDnd}
+			onfinalize={handleImageDnd}
+		>
+			{#each images as image, index (image.id)}
+				<div animate:flip={{ duration: flipDurationMs }} class="overflow-hidden rounded-lg border border-pink-100 bg-white">
+					<div
+						class="relative aspect-[4/3] cursor-grab bg-pink-50 active:cursor-grabbing"
+						role="button"
+						tabindex="0"
+						use:dragHandle
+						aria-label="Drag image {index + 1}"
+						title="Drag to reorder"
+					>
 						{#if image.url}
 							<img class="h-full w-full object-cover" src={image.url} alt={image.altText || ''} />
 						{:else}
