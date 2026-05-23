@@ -1,14 +1,99 @@
 <script>
-	let { form } = $props();
+	import { flip } from 'svelte/animate';
+	import { dragHandle, dragHandleZone } from 'svelte-dnd-action';
+
+	let { data, form } = $props();
 
 	const stripeImportResult = $derived(form?.stripeImportResult ?? form?.stripeImportPreview);
 	const hasPreview = $derived(Boolean(form?.stripeImportPreview));
+	const flipDurationMs = 150;
+	const kinds = [
+		{ value: 'page', label: 'Page' },
+		{ value: 'internal', label: 'Site link' },
+		{ value: 'external', label: 'External link' }
+	];
+	let navigationItems = $state((data.navigation ?? []).map(normalizeNavItem));
+	let navigationPayload = $derived(JSON.stringify({ items: serializeNavigationItems() }));
 
 	function actionLabel(action) {
 		if (action === 'create') return 'Create';
 		if (action === 'update') return 'Update';
 		if (action === 'skip') return 'Skip';
 		return action;
+	}
+
+	function makeId() {
+		return `nav-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+	}
+
+	function normalizeNavItem(item) {
+		return {
+			id: item.id ?? makeId(),
+			label: item.label ?? '',
+			url: item.url ?? '',
+			kind: item.kind ?? 'internal',
+			pageId: item.pageId ?? data.pages[0]?.id ?? '',
+			isVisible: item.isVisible ?? true,
+			openInNewTab: item.openInNewTab ?? false,
+			sortOrder: item.sortOrder ?? 0
+		};
+	}
+
+	function addItem(kind = 'internal') {
+		navigationItems.push(
+			normalizeNavItem({
+				id: makeId(),
+				label: kind === 'page' ? data.pages[0]?.title ?? 'Page' : '',
+				url: kind === 'internal' ? '/' : '',
+				kind,
+				pageId: kind === 'page' ? data.pages[0]?.id ?? '' : '',
+				isVisible: true,
+				openInNewTab: kind === 'external',
+				sortOrder: navigationItems.length
+			})
+		);
+	}
+
+	function removeItem(index) {
+		navigationItems.splice(index, 1);
+		normalizeOrder();
+	}
+
+	function moveItem(index, direction) {
+		const nextIndex = index + direction;
+		if (nextIndex < 0 || nextIndex >= navigationItems.length) return;
+		const item = navigationItems[index];
+		navigationItems[index] = navigationItems[nextIndex];
+		navigationItems[nextIndex] = item;
+		normalizeOrder();
+	}
+
+	function handleDnd(event) {
+		navigationItems = event.detail.items;
+		normalizeOrder();
+	}
+
+	function normalizeOrder() {
+		navigationItems.forEach((item, index) => {
+			item.sortOrder = index;
+		});
+	}
+
+	function pagePath(pageId) {
+		return data.pages.find((page) => page.id === pageId)?.path ?? '';
+	}
+
+	function serializeNavigationItems() {
+		return navigationItems.map((item, index) => ({
+			id: item.id?.startsWith?.('nav-') ? null : item.id,
+			label: item.label,
+			url: item.kind === 'page' ? pagePath(item.pageId) : item.url,
+			kind: item.kind,
+			pageId: item.kind === 'page' ? item.pageId : null,
+			isVisible: item.isVisible,
+			openInNewTab: item.kind === 'external' ? item.openInNewTab : false,
+			sortOrder: index
+		}));
 	}
 </script>
 
@@ -21,6 +106,105 @@
 		<h1 class="text-3xl font-black text-gray-950">Settings</h1>
 		<p class="mt-1 text-sm font-semibold text-gray-600">Admin tools for storefront operations.</p>
 	</div>
+
+	<section class="panel p-5">
+		<div class="flex flex-wrap items-start justify-between gap-4">
+			<div>
+				<h2 class="text-lg font-black text-gray-950">Header Navigation</h2>
+				<p class="mt-1 max-w-3xl text-sm font-semibold text-gray-600">
+					Choose the links shown in the public desktop and mobile header menus.
+				</p>
+			</div>
+			<div class="flex flex-wrap gap-2">
+				<button class="button button-secondary" type="button" onclick={() => addItem('page')}>＋ Page</button>
+				<button class="button button-secondary" type="button" onclick={() => addItem('internal')}>＋ Site link</button>
+				<button class="button button-secondary" type="button" onclick={() => addItem('external')}>＋ External link</button>
+			</div>
+		</div>
+
+		{#if form?.navigationSaved}
+			<p class="mt-4 rounded-lg border border-green-200 bg-green-50 p-3 text-sm font-bold text-green-800">Navigation saved.</p>
+		{/if}
+		{#if form?.error}
+			<p class="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-700">{form.error}</p>
+		{/if}
+
+		<form method="POST" action="?/saveNavigation" class="mt-5 space-y-4">
+			<input type="hidden" name="navigationPayload" value={navigationPayload} />
+			<div
+				class="space-y-3"
+				use:dragHandleZone={{ items: navigationItems, flipDurationMs, morphDisabled: true }}
+				onconsider={handleDnd}
+				onfinalize={handleDnd}
+			>
+				{#each navigationItems as item, index (item.id)}
+					<div animate:flip={{ duration: flipDurationMs }} class="rounded-xl border border-pink-100 bg-white p-4">
+						<div class="grid gap-3 lg:grid-cols-[3rem_minmax(0,1fr)_10rem_minmax(0,1.2fr)_auto] lg:items-start">
+							<div
+								class="grid size-10 cursor-grab place-items-center rounded-lg bg-pink-50 text-sm font-black text-pink-800 active:cursor-grabbing"
+								role="button"
+								tabindex="0"
+								use:dragHandle
+								aria-label="Drag navigation item {index + 1}"
+								title="Drag to reorder"
+							>
+								{index + 1}
+							</div>
+							<div class="field">
+								<span class="label">Label</span>
+								<input class="input" bind:value={item.label} required />
+							</div>
+							<div class="field">
+								<span class="label">Type</span>
+								<select class="select" bind:value={item.kind}>
+									{#each kinds as kind}
+										<option value={kind.value}>{kind.label}</option>
+									{/each}
+								</select>
+							</div>
+							{#if item.kind === 'page'}
+								<div class="field">
+									<span class="label">Page</span>
+									<select class="select" bind:value={item.pageId}>
+										{#each data.pages as page}
+											<option value={page.id}>{page.title} ({page.path})</option>
+										{/each}
+									</select>
+								</div>
+							{:else}
+								<div class="field">
+									<span class="label">URL</span>
+									<input class="input" bind:value={item.url} placeholder={item.kind === 'internal' ? '/books' : 'https://example.com'} required />
+								</div>
+							{/if}
+							<div class="flex flex-wrap gap-2 lg:justify-end">
+								<button class="button button-secondary" type="button" onclick={() => moveItem(index, -1)} disabled={index === 0}>Up</button>
+								<button class="button button-secondary" type="button" onclick={() => moveItem(index, 1)} disabled={index === navigationItems.length - 1}>Down</button>
+								<button class="button button-secondary" type="button" onclick={() => removeItem(index)}>Remove</button>
+							</div>
+						</div>
+						<div class="mt-3 flex flex-wrap gap-4">
+							<label class="flex items-center gap-2 text-sm font-black text-gray-700">
+								<input type="checkbox" bind:checked={item.isVisible} />
+								Visible
+							</label>
+							{#if item.kind === 'external'}
+								<label class="flex items-center gap-2 text-sm font-black text-gray-700">
+									<input type="checkbox" bind:checked={item.openInNewTab} />
+									Open in new tab
+								</label>
+							{/if}
+						</div>
+					</div>
+				{:else}
+					<p class="rounded-lg border border-pink-100 p-4 text-sm font-semibold text-gray-600">No navigation items yet.</p>
+				{/each}
+			</div>
+			<div class="flex justify-end">
+				<button class="button button-primary" type="submit">Save navigation</button>
+			</div>
+		</form>
+	</section>
 
 	<section class="panel p-5">
 		<div class="flex flex-wrap items-start justify-between gap-4">
