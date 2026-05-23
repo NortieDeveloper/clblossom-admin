@@ -7,7 +7,7 @@
 
 	const nav = [
 		{ href: '/', label: 'Overview', icon: '⌂' },
-		{ href: '/homepage', label: 'Homepage', icon: '▣' },
+		{ href: '/pages', label: 'Pages', icon: '▣' },
 		{ href: '/products', label: 'Products', icon: '▦' },
 		{ href: '/books', label: 'Books', icon: '▥' },
 		{ href: '/orders', label: 'Orders', icon: '▤' },

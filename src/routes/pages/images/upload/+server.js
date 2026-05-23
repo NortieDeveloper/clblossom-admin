@@ -5,7 +5,7 @@ export async function POST(event) {
 	await requireAdmin(event);
 
 	const form = await event.request.formData();
-	const response = await backendFetch(event, '/api/admin/homepage/images/upload', {
+	const response = await backendFetch(event, '/api/admin/pages/images/upload', {
 		method: 'POST',
 		body: form
 	});
