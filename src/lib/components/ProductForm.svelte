@@ -4,7 +4,7 @@
 	import { dragHandle, dragHandleZone } from 'svelte-dnd-action';
 	import RichTextEditor from '$lib/components/RichTextEditor.svelte';
 
-	let { product = null, form = null, mode = 'create', action = undefined, categories = [] } = $props();
+	let { product = null, form = null, mode = 'create', action = undefined, categories = [], componentOptions = [] } = $props();
 	const SHORT_DESCRIPTION_LIMIT = 500;
 	const IMAGE_ACCEPT = 'image/jpeg,image/png,image/webp,image/gif';
 	const flipDurationMs = 150;
@@ -41,7 +41,8 @@
 						trackInventory: false,
 						stockQuantity: 0,
 						outOfStock: false,
-						sortOrder: 0
+						sortOrder: 0,
+						components: []
 					}
 				]
 		).map(withDisplayPrice)
@@ -84,8 +85,40 @@
 			trackInventory: false,
 			stockQuantity: 0,
 			outOfStock: false,
-			sortOrder: variants.length
+			sortOrder: variants.length,
+			components: []
 		});
+	}
+
+	function addComponent(variant) {
+		variant.components ??= [];
+		variant.components.push({
+			id: makeTempId('component'),
+			componentVariantId: '',
+			quantity: 1
+		});
+	}
+
+	function removeComponent(variant, index) {
+		variant.components?.splice(index, 1);
+	}
+
+	function isComponentOptionDisabled(option, variant, component) {
+		const optionId = String(option.variantId ?? '');
+		return (
+			(variant.id && optionId === String(variant.id)) ||
+			(variant.components ?? []).some((item) => item !== component && String(item.componentVariantId ?? '') === optionId)
+		);
+	}
+
+	function formatComponentOption(option) {
+		const name =
+			option.variantName?.toLowerCase() === 'default'
+				? option.productName
+				: `${option.productName} - ${option.variantName}`;
+		const stock = option.trackInventory ? `stock ${option.stockQuantity}` : 'untracked';
+		const status = option.outOfStock ? ', out of stock' : '';
+		return `${name}${option.sku ? ` (${option.sku})` : ''} - ${stock}${status}`;
 	}
 
 	function addImage() {
@@ -236,6 +269,11 @@
 			...rest,
 			preorder: preorder ?? false,
 			allowBackorder: variant.allowBackorder ?? preorder ?? false,
+			components: (variant.components ?? []).map((component) => ({
+				id: component.id ?? makeTempId('component'),
+				componentVariantId: component.componentVariantId ?? '',
+				quantity: component.quantity ?? 1
+			})),
 			priceDisplay:
 				variant.priceDisplay ??
 				(Number.isFinite(Number(variant.unitAmount)) && Number(variant.unitAmount) > 0
@@ -258,7 +296,14 @@
 		}
 		const variantPayload = variants.map(({ priceDisplay, ...variant }) => ({
 			...variant,
-			unitAmount: parsePriceToCents(priceDisplay)
+			unitAmount: parsePriceToCents(priceDisplay),
+			components: (variant.components ?? [])
+				.filter((component) => component.componentVariantId)
+				.map((component) => ({
+					id: serverId(component.id),
+					componentVariantId: component.componentVariantId,
+					quantity: Math.max(1, Number(component.quantity) || 1)
+				}))
 		}));
 		payload = JSON.stringify({
 			...base,
@@ -408,6 +453,45 @@
 							<label class="label flex items-center gap-2"><input type="checkbox" bind:checked={variant.allowBackorder} /> Allow backorder</label>
 							<label class="label flex items-center gap-2"><input type="checkbox" bind:checked={variant.trackInventory} /> Track inventory</label>
 							<label class="label flex items-center gap-2"><input type="checkbox" bind:checked={variant.outOfStock} /> Out of stock</label>
+						</div>
+						<div class="md:col-span-4">
+							<div class="flex items-center justify-between gap-3">
+								<div>
+									<h4 class="text-sm font-black text-gray-950">Bundle components</h4>
+									<p class="text-xs font-semibold text-gray-500">Component stock controls this variant when rows are added.</p>
+								</div>
+								<button class="button button-secondary" type="button" onclick={() => addComponent(variant)}>＋ Add component</button>
+							</div>
+							{#if variant.components?.length}
+								<div class="mt-3 grid gap-3">
+									{#each variant.components as component, componentIndex (component.id)}
+										<div class="grid gap-3 rounded-lg border border-pink-100 bg-pink-50/50 p-3 md:grid-cols-[1fr_120px_auto] md:items-end">
+											<div class="field">
+												<span class="label">Component variant</span>
+												<select class="input" bind:value={component.componentVariantId}>
+													<option value="">Select a variant</option>
+													{#each componentOptions as option}
+														<option value={option.variantId} disabled={isComponentOptionDisabled(option, variant, component)}>
+															{formatComponentOption(option)}
+														</option>
+													{/each}
+												</select>
+											</div>
+											<div class="field">
+												<span class="label">Quantity</span>
+												<input class="input" type="number" min="1" bind:value={component.quantity} />
+											</div>
+											<button class="button button-secondary" type="button" onclick={() => removeComponent(variant, componentIndex)}>
+												Remove
+											</button>
+										</div>
+									{/each}
+								</div>
+							{:else}
+								<p class="mt-3 rounded-lg border border-pink-100 bg-white px-3 py-2 text-sm font-semibold text-gray-600">
+									No bundle components. This variant uses its own inventory settings.
+								</p>
+							{/if}
 						</div>
 					</div>
 				</div>

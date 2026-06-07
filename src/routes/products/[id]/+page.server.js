@@ -3,10 +3,11 @@ import { error, redirect } from '@sveltejs/kit';
 
 export async function load(event) {
 	await requireAdmin(event);
-	const [productResponse, categoriesResponse, activitiesResponse] = await Promise.all([
+	const [productResponse, categoriesResponse, activitiesResponse, componentOptionsResponse] = await Promise.all([
 		backendFetch(event, `/api/admin/products/${event.params.id}`),
 		backendFetch(event, '/api/admin/products/categories'),
-		backendFetch(event, `/api/admin/activities?entityType=product&entityId=${event.params.id}&limit=20`)
+		backendFetch(event, `/api/admin/activities?entityType=product&entityId=${event.params.id}&limit=20`),
+		backendFetch(event, '/api/admin/products/component-options')
 	]);
 	const response = productResponse;
 	if (response.status === 404) throw error(404, 'Product not found');
@@ -14,7 +15,8 @@ export async function load(event) {
 	const product = await response.json();
 	const categories = categoriesResponse.ok ? (await categoriesResponse.json()).categories ?? [] : [];
 	const activities = activitiesResponse.ok ? (await activitiesResponse.json()).activities ?? [] : [];
-	return { product, categories, activities };
+	const componentOptions = componentOptionsResponse.ok ? (await componentOptionsResponse.json()).variants ?? [] : [];
+	return { product, categories, activities, componentOptions };
 }
 
 export const actions = {

@@ -21,7 +21,7 @@
 			<button class="button border border-red-200 bg-red-50 text-red-700" type="submit">Delete</button>
 		</form>
 	</div>
-	<ProductForm product={data.product} {form} mode="edit" action="?/save" categories={data.categories} />
+	<ProductForm product={data.product} {form} mode="edit" action="?/save" categories={data.categories} componentOptions={data.componentOptions} />
 	<section class="panel p-5">
 		<h2 class="mb-4 text-lg font-black text-gray-950">Activity</h2>
 		<AdminActivityList activities={data.activities} />

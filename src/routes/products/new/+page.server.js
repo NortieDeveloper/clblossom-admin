@@ -3,10 +3,13 @@ import { redirect } from '@sveltejs/kit';
 
 export async function load(event) {
 	await requireAdmin(event);
-	const response = await backendFetch(event, '/api/admin/products/categories');
-	if (!response.ok) return { categories: [] };
-	const body = await response.json();
-	return { categories: body.categories ?? [] };
+	const [categoriesResponse, componentOptionsResponse] = await Promise.all([
+		backendFetch(event, '/api/admin/products/categories'),
+		backendFetch(event, '/api/admin/products/component-options')
+	]);
+	const categories = categoriesResponse.ok ? (await categoriesResponse.json()).categories ?? [] : [];
+	const componentOptions = componentOptionsResponse.ok ? (await componentOptionsResponse.json()).variants ?? [] : [];
+	return { categories, componentOptions };
 }
 
 export const actions = {
