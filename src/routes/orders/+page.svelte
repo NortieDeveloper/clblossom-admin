@@ -10,7 +10,7 @@
 	}
 
 	function statusClass(status) {
-		if (status === 'FulfillmentCreated') return 'bg-green-100 text-green-800';
+		if (status === 'Fulfilled') return 'bg-green-100 text-green-800';
 		if (status === 'InventoryFailed' || status === 'FulfillmentFailed') return 'bg-red-100 text-red-800';
 		if (status === 'InventoryAllocated') return 'bg-blue-100 text-blue-800';
 		if (status === 'AllocatingInventory') return 'bg-yellow-100 text-yellow-800';
@@ -20,14 +20,15 @@
 	function statusLabel(status) {
 		if (status === 'InventoryFailed') return 'Manual review';
 		if (status === 'FulfillmentFailed') return 'Fulfillment failed';
-		if (status === 'FulfillmentCreated') return 'Fulfilled';
-		if (status === 'InventoryAllocated') return 'Allocated';
+		if (status === 'Fulfilled') return 'Fulfilled';
+		if (status === 'FulfillmentCreated') return 'Ready to fulfill';
+		if (status === 'InventoryAllocated') return 'Ready to fulfill';
 		if (status === 'AllocatingInventory') return 'Allocating';
 		return status;
 	}
 
 	function canMarkFulfilled(order) {
-		return order.status !== 'FulfillmentCreated' && order.status !== 'AllocatingInventory';
+		return order.status !== 'Fulfilled' && order.status !== 'AllocatingInventory';
 	}
 </script>
 
