@@ -55,6 +55,7 @@
 					<th class="px-4 py-3">Order</th>
 					<th class="px-4 py-3">Customer</th>
 					<th class="px-4 py-3">Items</th>
+					<th class="px-4 py-3">Details</th>
 					<th class="px-4 py-3">Total</th>
 					<th class="px-4 py-3">Status</th>
 					<th class="px-4 py-3">Fulfillment</th>
@@ -77,6 +78,20 @@
 									<p class="font-semibold text-gray-500">No items recorded.</p>
 								{/each}
 							</div>
+						</td>
+						<td class="max-w-72 px-4 py-3 align-top">
+							{#if order.customFields?.length}
+								<div class="space-y-2">
+									{#each order.customFields as field}
+										<div>
+											<p class="text-xs font-black uppercase tracking-wide text-gray-500">{field.label || field.key}</p>
+											<p class="break-words font-semibold text-gray-800">{field.value}</p>
+										</div>
+									{/each}
+								</div>
+							{:else}
+								<p class="font-semibold text-gray-500">None</p>
+							{/if}
 						</td>
 						<td class="whitespace-nowrap px-4 py-3 align-top">
 							<p class="font-black text-gray-950">{formatMoney(order.amountTotal, order.currency)}</p>
@@ -104,7 +119,7 @@
 					</tr>
 				{:else}
 					<tr>
-						<td class="px-4 py-6 text-sm font-semibold text-gray-500" colspan="7">No orders yet.</td>
+						<td class="px-4 py-6 text-sm font-semibold text-gray-500" colspan="8">No orders yet.</td>
 					</tr>
 				{/each}
 			</tbody>
