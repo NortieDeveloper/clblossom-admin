@@ -33,7 +33,7 @@ export const actions = {
 		if (!packageData.packageId) return { error: 'Package is required.' };
 
 		const response = await backendJson(event, `/api/admin/orders/${id}/label-rates`, packageData);
-		if (!response.ok) return formError(response, 'Unable to retrieve label rates.');
+		if (!response.ok) return labelActionError(response, 'Unable to retrieve label rates.');
 
 		const body = await response.json();
 		return { labelRates: { orderId: id, ...packageData, ...body } };
@@ -55,7 +55,7 @@ export const actions = {
 			packageId,
 			packageName
 		});
-		if (!response.ok) return formError(response, 'Unable to purchase label.');
+		if (!response.ok) return labelActionError(response, 'Unable to purchase label.');
 
 		return { order: await response.json() };
 	}
@@ -72,4 +72,17 @@ function parsePackageData(raw) {
 	} catch {
 		return {};
 	}
+}
+
+async function labelActionError(response, fallback) {
+	if (response.status >= 500) {
+		let message = fallback;
+		try {
+			const body = await response.json();
+			message = body.error || body.message || fallback;
+		} catch {
+		}
+		return { error: message };
+	}
+	return formError(response, fallback);
 }
