@@ -32,6 +32,32 @@
 	function canMarkFulfilled(order) {
 		return order.status !== 'Fulfilled' && order.status !== 'Cancelled' && order.status !== 'AllocatingInventory';
 	}
+
+	function canBuyLabel(order) {
+		return order.status !== 'Cancelled' && order.shippoOrderId && !order.label?.transactionId;
+	}
+
+	function formatRate(rate) {
+		const amount = Number.parseFloat(rate.amount || '0');
+		const money = Number.isFinite(amount)
+			? new Intl.NumberFormat('en-US', {
+					style: 'currency',
+					currency: (rate.currency || 'usd').toUpperCase()
+				}).format(amount)
+			: '';
+		const days = rate.days ? ` · ${rate.days} days` : '';
+		return `${rate.provider} ${rate.serviceName} · ${money}${days}`;
+	}
+
+	function formatLabelCost(label) {
+		if (!label?.cost) return '';
+		const amount = Number.parseFloat(label.cost);
+		if (!Number.isFinite(amount)) return '';
+		return new Intl.NumberFormat('en-US', {
+			style: 'currency',
+			currency: (label.currency || 'usd').toUpperCase()
+		}).format(amount);
+	}
 </script>
 
 <svelte:head>
@@ -106,7 +132,57 @@
 							{/if}
 						</td>
 						<td class="max-w-48 break-all px-4 py-3 align-top font-semibold text-gray-700">
-							{order.shippoOrderId || 'Not created'}
+							<div class="space-y-3">
+								<div>
+									<p class="break-all">{order.shippoOrderId || 'Not created'}</p>
+									<p class="mt-1 text-xs text-gray-500">Customer paid {formatMoney(order.shippingAmount, order.currency) || 'unknown'}</p>
+								</div>
+								{#if order.label}
+									<div class="space-y-1 rounded border border-gray-200 bg-gray-50 p-2">
+										<p class="font-black text-gray-950">{order.label.carrier} {order.label.service}</p>
+										{#if order.label.packageName}
+											<p class="text-xs text-gray-600">Package: {order.label.packageName}</p>
+										{/if}
+										{#if formatLabelCost(order.label)}
+											<p class="text-xs text-gray-600">Label cost: {formatLabelCost(order.label)}</p>
+										{/if}
+										{#if order.label.trackingNumber}
+											<p class="break-all text-xs text-gray-600">Tracking: {order.label.trackingNumber}</p>
+										{/if}
+										<a class="button button-secondary inline-flex" href={`/orders/${order.id}/label/download`}>Download label</a>
+									</div>
+								{:else if canBuyLabel(order)}
+									<form class="space-y-2" method="POST" action="?/previewLabelRates">
+										<input type="hidden" name="id" value={order.id} />
+										<select class="input w-full min-w-48" name="packageData" required>
+											<option value="">Select package</option>
+											{#each data.labelPackages as pkg}
+												<option value={JSON.stringify(pkg)}>
+													{pkg.name}
+													{pkg.length && pkg.width && pkg.height ? ` (${pkg.length} x ${pkg.width} x ${pkg.height} ${pkg.distanceUnit || ''})` : ''}
+												</option>
+											{/each}
+										</select>
+										<button class="button button-secondary" type="submit">Preview rates</button>
+									</form>
+									{#if form?.labelRates?.orderId === order.id}
+										<div class="space-y-2 rounded border border-pink-100 bg-white p-2">
+											{#each form.labelRates.rates as rate}
+												<form method="POST" action="?/purchaseLabel">
+													<input type="hidden" name="id" value={order.id} />
+													<input type="hidden" name="rateId" value={rate.objectId} />
+													<input type="hidden" name="shipmentId" value={form.labelRates.shipmentId} />
+													<input type="hidden" name="packageId" value={form.labelRates.packageId} />
+													<input type="hidden" name="packageName" value={form.labelRates.packageName} />
+													<button class="button button-secondary w-full text-left" type="submit">{formatRate(rate)}</button>
+												</form>
+											{:else}
+												<p class="text-xs font-semibold text-gray-500">No rates returned.</p>
+											{/each}
+										</div>
+									{/if}
+								{/if}
+							</div>
 						</td>
 						<td class="px-4 py-3 align-top text-right">
 							{#if canMarkFulfilled(order)}
